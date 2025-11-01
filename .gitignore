@@ -1,0 +1,72 @@
+# Node.js .gitignore
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Optional npm cache
+.npm
+.cache
+
+# Build output
+dist/
+build/
+out/
+.next/
+.nuxt/
+.public/
+.public/   # (some frameworks)
+.storybook/build
+ .svelte-kit/
+
+# Coverage reports
+coverage/
+*.lcov
+.nyc_output
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.*.local
+.env.local
+.env.test
+.env.production.local
+
+# Parcel / FuseBox / other caches
+.parcel-cache/
+.fusebox/
+
+# Misc runtime files
+lib-cov/
+.grunt/
+.serverless/
+.dynamodb/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE/editor
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Yarn PnP
+.pnp.*

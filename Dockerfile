@@ -2,7 +2,7 @@ FROM node:20-bookworm
 
 WORKDIR /usr/src/app
 
-RUN npm install -g pm2
+# Run with plain node - clustering and restart behavior is handled inside the app
 
 COPY package*.json ./
 RUN npm ci --omit=dev
@@ -11,4 +11,4 @@ COPY . .
 
 EXPOSE 3000
 
-CMD ["pm2-runtime", "index.js"]
+CMD ["node", "index.js"]

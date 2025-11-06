@@ -9,21 +9,29 @@ import dotenv from 'dotenv'
 dotenv.config({ quiet: true })
 
 const EMAIL_RE = /(?:mailto:)?([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})(?![a-z0-9@._%+-])/gi
+const htmlEmailRegex = /<[^>]*>([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})<\/[^>]*>/gi;
 const DEBUG = process.env.DEBUG === 'true' || true
 
 function extractEmails(htmlOrText) {
   const found = new Set()
   if (!htmlOrText) return []
+  // Reset regex lastIndex to ensure proper execution
+  EMAIL_RE.lastIndex = 0
+  htmlEmailRegex.lastIndex = 0
   let m
   while ((m = EMAIL_RE.exec(htmlOrText)) !== null) {
+    let email = (m[1] || '').trim().toLowerCase().replace(/[),.;:'"!?]+$/, '')
+    if (email) found.add(email)
+  }
+  while ((m = htmlEmailRegex.exec(htmlOrText)) !== null) {
     let email = (m[1] || '').trim().toLowerCase().replace(/[),.;:'"!?]+$/, '')
     if (email) found.add(email)
   }
   return [...found]
 }
 
-async function crawlAndFindEmails(url, maxPages = 25) {
-  const website = new Website(url).withBudget({ '*': maxPages }).build()
+async function crawlAndFindEmails(url, maxPages = 25, Timeout) {
+  const website = new Website(url).withBudget({ '*': maxPages }).withRequestTimeout(Timeout).build()
 
   const emails = new Set()
   const onPage = (_err, page) => {
@@ -133,7 +141,7 @@ if (cluster.isPrimary) {
   app.get('/health', (_req, res) => { res.json({ status: 'ok' }) })
 
   app.get('/', (_req, res) => {
-    res.json({ endpoints: { 'GET /health': { description: 'Health check endpoint', response: { status: 'ok' } }, 'POST /crawl': { description: 'Crawls a website to find email addresses' } } })
+    res.json({ endpoints: { 'GET /health': { description: 'Health check endpoint', response: { status: 'ok' } }, 'POST /crawl': { description: 'Crawls a website to find email addresses', parameters: { url: 'required (string)', maxPages: 'optional (number)', timeout: 'optional (number, milliseconds, default: 180000)' } } } })
   })
 
   app.post('/crawl', async (req, res) => {
@@ -144,7 +152,7 @@ if (cluster.isPrimary) {
 
     reportDelta(1)
     try {
-      const { url, maxPages } = req.body || {}
+      const { url, maxPages, timeout } = req.body || {}
       if (typeof url !== 'string' || url.trim().length === 0) {
         res.status(400).json({ error: 'url is required' })
         return
@@ -152,8 +160,15 @@ if (cluster.isPrimary) {
       let normalizedUrl
       try { normalizedUrl = new URL(url.trim()).toString() } catch { res.status(400).json({ error: 'url must be a valid absolute URL' }); return }
 
+      // Default timeout: 3 minutes (180000 ms) if not provided
+      const requestTimeout = timeout != null ? Number(timeout) : 180000
+      if (isNaN(requestTimeout) || requestTimeout <= 0) {
+        res.status(400).json({ error: 'timeout must be a positive number (milliseconds)' })
+        return
+      }
+
       try {
-        const emails = await crawlAndFindEmails(normalizedUrl, maxPages)
+        const emails = await crawlAndFindEmails(normalizedUrl, maxPages, requestTimeout)
         res.json({ url: normalizedUrl, count: emails.length, emails })
       } catch (err) {
         if (err && err.message && /maxPages/.test(err.message)) { res.status(400).json({ error: err.message }); return }
